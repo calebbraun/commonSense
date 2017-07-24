@@ -5,15 +5,42 @@
     <title>commonSense</title>
     <script src="http://d3js.org/d3.v3.js" charset="utf-8"></script>
     <link href='//fonts.googleapis.com/css?family=Lato' rel='stylesheet'>
-    <link rel="stylesheet" href="../style.css">
+    <!-- <link rel="stylesheet" href="../style.css"> -->
+    <style>
+    h1, h3 {
+      font-family: 'Lato', sans-serif;
+      font-weight: lighter;
+      color: #AE663C;
+      margin-left: 20px;
+      text-align: center;
+    }
+    body {
+        font-family: 'Lato', sans-serif;
+        color: grey;
+        margin-left: 20px;
+        font-size: 14px;
+    }
+    </style>
 </head>
 
 <body>
-<h2>commonSense</h1>
-<h4>The Common House Dashboard</h4>
+<h1>commonSense</h1>
+<h3>The Common House Dashboard</h3>
 <br>
-
 <div id='legend'></div>
+Include:
+<ul>
+    <li>Line graph of temperature over time</li>
+    <li>Line graph of tank temperature compared to house temperature</li>
+    <li>Water temperature versus weather or direct sunlight</li>
+    <li>Options for graphs to change time range</li>
+    <li>Live washing machine dashboard including time started, text when done, and if free</li>
+    <li>Total machine on hours (within time range?)</li>
+    <li>Most common times of day of machine use</li>
+    <li>Average length of time on per machine</li>
+    <li>Whose laundry day it is and full schedule</li>
+    <li>Sweet logo</li>
+</ul>
 <div id='vis'></div>
 </body>
 <script src="airplanes.js"></script>
