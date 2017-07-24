@@ -203,7 +203,7 @@ void normal_state() {
 }
 
 bool post(int count, char temps[FEEDS][10]) {
-    String postData = String("{");
+    String postData = String("{\"access_key\":\"1bc7bbdc\", \"");
 
     for (int i = 0; i < count; ++i)
     {
@@ -211,11 +211,12 @@ bool post(int count, char temps[FEEDS][10]) {
         Serial.print(i,DEC);
         Serial.print(" has value: ");
         PRINT(temps[i]);
-        postData += (i == 0) ? "" : ",";
-        postData += count;
-        postData += ":";
+        postData += i;
+        postData += "\":";
         postData += temps[i];
+        postData += ", \"";
     }
+    postData += (washerOn) ? "washer1\":1" : "washer1\":0";
     postData += "}";
 
    if(!postPage(postData)) {
