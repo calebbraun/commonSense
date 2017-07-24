@@ -44,8 +44,9 @@ unsigned long timeRef;
 unsigned long secondRef;
 
 const int lightPin = 0;  //define a pin for Photo resistor
-bool washerOn = false;
 const int brightnessDifference = 150; //approximate minimum difference between the washer light when it's on and when it's off
+int lastBrightness = analogRead(lightPin);
+bool washerOn = false;
 
 const int buttonPin = 3;     // the number of the pushbutton pin
 int buttonState = 0;         // variable for reading the pushbutton status
@@ -96,7 +97,7 @@ void initialize() {
   digitalWrite(green, HIGH);
   digitalWrite(red, HIGH);
 
-  byte mac[] = {  0xB8, 0x27, 0xEB, 0xFE, 0xB2, 0x49 };
+  byte mac[] = {  0xB8, 0x27, 0xEB, 0xFE, 0xB2, 0x49 }; // unused mac address
   if (Ethernet.begin(mac) == 0) {
     PRINT("Failed to configure Ethernet using DHCP");
     state = ERROR_STATE;
@@ -145,7 +146,6 @@ void error_state() {
 }
 
 int minute_count = 1;
-int lastBrightness = analogRead(lightPin);
 
 void normal_state() {
     int count;
@@ -236,9 +236,6 @@ bool postPage(String thisData) {
    }
 
    if (clientConnected) {
-       // sample data for testing
-       thisData = "{\"access_key\": \"1bc7bbdc\", \"1\": 3.1415926, \"2\": 1.2060, \"3\": 39.27293}";
-
        client.println("POST / HTTP/1.1");  // send the header:
        client.println("Host: 192.168.2.133");
        client.println("Connection: close");
