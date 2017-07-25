@@ -1,0 +1,17 @@
+{
+  "name": "commonsense",
+  "version": "1.0.0",
+  "description": "An interface for sensors in QIVC's common house.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node index.js"
+  },
+  "author": "Caleb Braun",
+  "license": "ISC",
+  "dependencies": {
+    "body-parser": "^1.17.2",
+    "express": "^4.15.3",
+    "handlebars": "^4.0.10"
+  }
+}
