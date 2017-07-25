@@ -6,15 +6,19 @@ const exphbs = require('express-handlebars')
 const path = require('path')
 const { Pool, Client } = require('pg')
 
+const config = require('../config');
+
 const app = express()
-const port = 8000
+const port = config.server.port
 
 const pool = new Pool({
-	user: 'farmonitor',
-	host: 'localhost',
-	database: 'farmonitor',
-	port: 5432})
-	
+	user: config.database.user,
+	host: config.database.host,
+	database: config.database.db,
+	password: config.database.pass,
+	port: config.database.port
+})
+
 
 app.engine('.hbs', exphbs({
 	defaultLayout: 'main',
@@ -31,17 +35,16 @@ app.use(bodyParser.urlencoded({extended:true}))
 app.get('/', (request, response) => {
 	response.render('home', {
 		name: 'Caleb'
-	})	
+	})
 })
 
 
-app.post('/', function (req, res) {  
+app.post('/', function (req, res) {
 	// retrieve user posted data from the body
 	const data = req.body
 	console.log("got a post request!")
-	
-	// our 'secure' access key lol
-	if (data.access_key == "1bc7bbdc") {
+
+	if (data.access_key == config.access_key) {
 		pool.connect(function(err, client, done) {
 			if (err) {
 				return console.error('Connection error:\n', err)
@@ -49,6 +52,11 @@ app.post('/', function (req, res) {
 			Object.keys(data).forEach(function(key) {
 				if (key == "access_key") {return}
 				var val = data[key]
+				/* Table 'commonsense' looks like this:
+			 	._______________________________________________________________________________________________.
+				| date | tank_top_temp | tank_bottom_temp | ambient_temp | washer1_on | washer2_on | washer3_on |
+				|------+---------------+------------------+--------------+------------+------------+------------|
+				*/
 				client.query('INSERT INTO commonsense (feed, value, date) VALUES ($1, $2, NOW());', [key, val], function(err, result) {
 					done()
 					if (err) {
@@ -71,4 +79,3 @@ app.listen(port, (err) => {
 	}
 	console.log(`server is listening on ${port}`)
 })
-
