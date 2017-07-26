@@ -29,14 +29,14 @@ String feeds[] = {"tank_top_temp", "tank_bottom_temp", "ambient_temp"};
 #define SECOND 1000
 #define MINUTE 60000
 
-int DELAY_MINUTES = 1;
+const int DELAY_MINUTES = 1;
 unsigned long timeRef;
 unsigned long secondRef;
 
 const int lightPin = 0;  // Define a pin for Photo resistor
 const int brightnessDifference = 150; // Approximate minimum difference between the washer light when it's on and when it's off
-int lastBrightness = analogRead(lightPin);
-bool washerOn = false;
+int lastBrightness;
+bool washer3On;
 
 const int buttonPin = 3;     // The number of the pushbutton pin
 int buttonState = 0;         // Variable for reading the pushbutton status
@@ -70,23 +70,26 @@ void setup() {
   // Grab a count of devices on the wire
   numberOfDevices = sensors.getDeviceCount();
 
-  initialize();
+  initializeEthernetConnection();
   delay(SECOND);
 
-  PRINT("Init done");
+  lastBrightness = analogRead(lightPin);
+  washer3On = (lastBrightness > brightnessDifference);
 
   // Init timeRef
-  timeRef = millis();
+  timeRef = -99999;
   secondRef = millis();
+
+  PRINT("Init done");
 }
 
 // Set up the ethernet connection
-void initialize() {
+void initializeEthernetConnection() {
   digitalWrite(yellow, HIGH);
   digitalWrite(green, HIGH);
   digitalWrite(red, HIGH);
 
-  byte mac[] = {  0xB8, 0x27, 0xEB, 0xFE, 0xB2, 0x49 }; // unused mac address
+  byte mac[] = { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED };  // unused mac address
   if (Ethernet.begin(mac) == 0) {
     PRINT("Failed to configure Ethernet using DHCP");
     state = ERROR_STATE;
@@ -119,7 +122,7 @@ int es = 1;
 void error_state() {
   int bs = digitalRead(buttonPin);
   if (buttonState == LOW && bs == HIGH) {
-    initialize();
+    initializeEthernetConnection();
   }
   buttonState = bs;
   if (millis() - timeRef > 1000) {
@@ -134,66 +137,66 @@ void error_state() {
   }
 }
 
-int minute_count = 1;
-
 void normal_state() {
-    int count;
     buttonState = digitalRead(buttonPin);
 
-    // Check every second if the washer has turned on
-    if (millis() - secondRef > SECOND) {
+    // Check every half second if the washer has turned on or off
+    if (millis() - secondRef > (SECOND / 2)) {
+        secondRef = millis();
         int brightness = analogRead(lightPin);
-        if (brightness >= lastBrightness + brightnessDifference) {
-            washerOn = true;
-            PRINT("LIGHT ON");
-        } else if (brightness <= lastBrightness - brightnessDifference) {
-            washerOn = false;
-            PRINT("LIGHT OFF");
+        if (brightnessDifference < abs(lastBrightness - brightness)) {
+            washer3On = !washer3On;
+            String postData = String("{\"w3val\":");
+            postData += brightness;
+            postData += ", ";
+            postData += washerDataToJSON() + "}";
+            PRINT("Washer status changed, sending data.");
+            post(postData);
         }
         lastBrightness = brightness;
-        secondRef = millis();
     }
 
-    if (millis() - timeRef > MINUTE) {
-      minute_count++;
-      timeRef = millis();
-    #if (DEBUG==1)
-      Serial.print("minute : ");
-      PRINT(minute_count,DEC);
-    #endif
-    }
-    // Send the values from input feeds every 10 minute or so
-    if ((minute_count >= DELAY_MINUTES) || (buttonState == HIGH) ) {
-      digitalWrite(yellow, HIGH);
-      digitalWrite(green, LOW);
-      digitalWrite(red, LOW);
-      PRINT("Getting Temperatures");
-      count = getTemps();
-      PRINT("Sending Temperatures");
+    // Try to send data every minute
+    if (millis() - timeRef > MINUTE || (buttonState == HIGH) ) {
+        timeRef = millis();
+        digitalWrite(yellow, HIGH);
+        digitalWrite(green, LOW);
+        digitalWrite(red, LOW);
 
-      if (post(count, temps)) {
-        PRINT("Sending Temperatures: success");
-        digitalWrite(yellow, LOW);
-        digitalWrite(green, HIGH);
-      } else {
-        PRINT("Sending Temperatures: failure");
-        digitalWrite(red, HIGH);
-      }
-      if (buttonState == HIGH) {
-        delay(1000);
-        buttonState = LOW;
-      }
-      else {
-        minute_count = 0;
-      }
-    }
-    else {
-      delay(200);
+        PRINT("Getting Temperatures");
+        int count = getTemps();
+        PRINT("Sending Temperatures");
+
+        String postData = preparePostData(count, temps);
+        PRINT(postData);
+        if (post(postData)) {
+            PRINT("Sending Temperatures: success");
+            digitalWrite(yellow, LOW);
+            digitalWrite(green, HIGH);
+        } else {
+            PRINT("Sending Temperatures: failure");
+            digitalWrite(red, HIGH);
+        }
+
+        if (buttonState == HIGH) {
+            delay(1000);
+            buttonState = LOW;
+        } else {
+            delay(200);
+        }
     }
 }
 
-bool post(int count, char temps[FEEDS][10]) {
-    String postData = String("{\"access_key\":\"1bc7bbdc\", \"");
+String washerDataToJSON() {
+    // We don't have sensors for washers 1 and 2 yet :(
+    String washerData = String("\"access_key\":\"1bc7bbdc\", \"washers\": {");
+    washerData += (washer3On) ? "\"w3\":1" : "\"w3\":0";
+    washerData += "}";
+    return washerData;
+}
+
+String preparePostData(int count, char temps[FEEDS][10]) {
+    String postData = String("{\"temps\": {");
 
     for (int i = 0; i < FEEDS; ++i) {
         #if (DEBUG==1)
@@ -203,49 +206,44 @@ bool post(int count, char temps[FEEDS][10]) {
             PRINT(temps[i]);
         #endif
 
-        postData += feeds[i];
-        postData += "\":";
+        postData += "\"" + feeds[i] + "\":";
         postData += temps[i];
-        postData += ", \"";
+        postData += (i == FEEDS - 1) ? "" : ", ";
     }
-    postData += (washerOn) ? "washer3_on\":1" : "washer3_on\":0";
+    postData += "}, " + washerDataToJSON();
     postData += "}";
 
-   if(!postPage(postData)) {
-       PRINT("Error posting");
-       return false;
-   }
-   return true;
+   return postData;
 }
 
 //-----------------------------------------
 //    POST data to server host
 //    found at https://forum.arduino.cc/index.php?topic=145277.0
 //
-bool postPage(String thisData) {
-   int inChar;
-   if (!clientConnected) {  // if not connected then connect:
-       connectToServer();
-   }
+bool post(String thisData) {
+    int inChar;
+    if (!clientConnected) {  // if not connected then connect:
+        connectToServer();
+    }
 
-   if (clientConnected) {
-       client.println("POST / HTTP/1.1");  // send the header:
-       client.println("Host: 192.168.2.133");
-       client.println("Connection: close");
-       client.println("Content-Type: application/json");
-       client.print("Content-Length: ");
-       client.println(thisData.length());
-       client.println();
-       client.print(thisData);    // send the data:
-       PRINT("Sending data " + thisData);
-   }
-   else {
-       PRINT("Heck, were're not connected");
-       return false;
-   }
+    if (clientConnected) {
+        client.println("POST /commonsense HTTP/1.1");  // send the header:
+        client.println("Host: qivc.org");
+        client.println("Connection: close");
+        client.println("Content-Type: application/json");
+        client.print("Content-Length: ");
+        client.println(thisData.length());
+        client.println();
+        client.print(thisData);    // send the data:
+        PRINT("Sending data " + thisData);
+    }
+    else {
+        PRINT("Heck, were're not connected!");
+        return false;
+    }
 
-   int connectLoop = 0;
-   while(client.connected()) {
+    int connectLoop = 0;
+    while(client.connected()) {
        while(client.available()) {
            inChar = client.read();
            Serial.write(inChar); // serial print reply from host:
@@ -260,12 +258,12 @@ bool postPage(String thisData) {
            client.stop();
            clientConnected = false;
        }
-   }
+    }
 
-   PRINT("disconnecting");
-   client.stop();
-   clientConnected = false;
-   return true;
+    PRINT("disconnecting");
+    client.stop();
+    clientConnected = false;
+    return true;
 }
 
 
@@ -277,7 +275,7 @@ void connectToServer() {
     PRINT("Connecting...");
     uint16_t retry = 3;     // retry count, normally 3:
     while (retry) {
-        if (client.connect("192.168.2.133", 8000)) {
+        if (client.connect("qivc.org", 80)) {
             Serial.print("Connection to host succeeded in ");
             Serial.print(3-retry);
             PRINT(" attempts.");
