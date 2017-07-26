@@ -15,7 +15,6 @@ const pool = new Pool({
 	user: config.database.user,
 	host: config.database.host,
 	database: config.database.db,
-	// password: config.database.pass,
 	port: config.database.port
 })
 
@@ -48,23 +47,27 @@ app.post('/', function (req, res) {
 			if (err) {
 				console.error('Connection error:\n', err)
 				res.send("Write to database unsuccessful.")
-			}
-			Object.keys(data).forEach(function(key) {
-				if (key == "access_key") {return}
-				var val = data[key]
+			} else {
+				var values = [data.tank_top_temp,
+							  data.tank_bottom_temp,
+							  data.ambient_temp,
+							  data.washer1_on,
+							  data.washer2_on,
+							  data.washer3_on]
+
 				/* Table 'commonsense' looks like this:
 			 	._______________________________________________________________________________________________.
 				| date | tank_top_temp | tank_bottom_temp | ambient_temp | washer1_on | washer2_on | washer3_on |
 				|------+---------------+------------------+--------------+------------+------------+------------|
 				*/
-				client.query('INSERT INTO commonsense (date, tank_top_temp, tank_bottom_temp, ambient_temp, washer1_on, washer2_on, washer3_on) VALUES (NOW(), $1, $2, $3, $4, $5, $6);', [null, null, null, null, null, 't'], function(err, result) {
+				client.query('INSERT INTO commonsense (date, tank_top_temp, tank_bottom_temp, ambient_temp, washer1_on, washer2_on, washer3_on) VALUES (NOW(), $1, $2, $3, $4, $5, $6);', values, function(err, result) {
 					done()
 					if (err) {
 						return console.error('Query error:\n', err)
 					}
 				})
-			})
-			res.send("Write to database successful.")
+				res.send("Write to database successful.")
+			}
 		})
 	} else {
 		ret = 'Successfully posted: ' + data.inputData

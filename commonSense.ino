@@ -5,29 +5,19 @@
 
 // Data wire is plugged into port 2 on the Arduino
 #define ONE_WIRE_BUS 2
-#define TEMPERATURE_PRECISION 9
 
 // Setup a oneWire instance to communicate with any OneWire devices (not just Maxim/Dallas temperature ICs)
 OneWire oneWire(ONE_WIRE_BUS);
 
 // Pass our oneWire reference to Dallas Temperature.
 DallasTemperature sensors(&oneWire);
-int numberOfDevices; // Number of temperature devices found
 DeviceAddress tempDeviceAddress; // We'll use this variable to store a found device address
+int numberOfDevices; // Number of temperature devices found
 
 #define DEBUG 1
-#define FEEDS 5
-#define AMBIENT_FEED 6808
-#define AMBIENT_FEED_IDX 1
-#define TANK_TOP_FEED 6842
-#define TANK_TOP_FEED_IDX 2
-#define TANK_BOTTOM_FEED 7264
-#define TANK_BOTTOM_FEED_IDX 0
-#define SOLAR_FEED 20425
-#define SOLAR_FEED_IDX 4
-#define FURNACE_FEED 20426
+#define FEEDS 3
 
-int feed_ids[] = {TANK_BOTTOM_FEED, AMBIENT_FEED, TANK_TOP_FEED, SOLAR_FEED, FURNACE_FEED};
+String feeds[] = {"tank_top_temp", "tank_bottom_temp", "ambient_temp"};
 
 #if (DEBUG==1)
 #define PRINT Serial.println
@@ -43,20 +33,19 @@ int DELAY_MINUTES = 1;
 unsigned long timeRef;
 unsigned long secondRef;
 
-const int lightPin = 0;  //define a pin for Photo resistor
-const int brightnessDifference = 150; //approximate minimum difference between the washer light when it's on and when it's off
+const int lightPin = 0;  // Define a pin for Photo resistor
+const int brightnessDifference = 150; // Approximate minimum difference between the washer light when it's on and when it's off
 int lastBrightness = analogRead(lightPin);
 bool washerOn = false;
 
-const int buttonPin = 3;     // the number of the pushbutton pin
-int buttonState = 0;         // variable for reading the pushbutton status
+const int buttonPin = 3;     // The number of the pushbutton pin
+int buttonState = 0;         // Variable for reading the pushbutton status
 
 #define NORMAL_STATE 1
 #define ERROR_STATE -1
 
 int state = NORMAL_STATE;
 char temps[FEEDS][10];
-float tank_top_temp,tank_bottom_temp,ambient_temp;
 
 const int red =  7;
 const int yellow =  8;
@@ -74,8 +63,8 @@ void setup() {
 
   #if (DEBUG==1)
     Serial.begin(9600);
-    Serial.println("Starting init");
   #endif
+  PRINT("Starting init");
 
   sensors.begin();
   // Grab a count of devices on the wire
@@ -151,6 +140,7 @@ void normal_state() {
     int count;
     buttonState = digitalRead(buttonPin);
 
+    // Check every second if the washer has turned on
     if (millis() - secondRef > SECOND) {
         int brightness = analogRead(lightPin);
         if (brightness >= lastBrightness + brightnessDifference) {
@@ -162,8 +152,8 @@ void normal_state() {
         }
         lastBrightness = brightness;
         secondRef = millis();
-
     }
+
     if (millis() - timeRef > MINUTE) {
       minute_count++;
       timeRef = millis();
@@ -205,18 +195,20 @@ void normal_state() {
 bool post(int count, char temps[FEEDS][10]) {
     String postData = String("{\"access_key\":\"1bc7bbdc\", \"");
 
-    for (int i = 0; i < count; ++i)
-    {
-        Serial.print("Feed ");
-        Serial.print(i,DEC);
-        Serial.print(" has value: ");
-        PRINT(temps[i]);
-        postData += i;
+    for (int i = 0; i < FEEDS; ++i) {
+        #if (DEBUG==1)
+            Serial.print("Feed ");
+            Serial.print(feeds[i]);
+            Serial.print(" has value: ");
+            PRINT(temps[i]);
+        #endif
+
+        postData += feeds[i];
         postData += "\":";
         postData += temps[i];
         postData += ", \"";
     }
-    postData += (washerOn) ? "washer1\":1" : "washer1\":0";
+    postData += (washerOn) ? "washer3_on\":1" : "washer3_on\":0";
     postData += "}";
 
    if(!postPage(postData)) {
@@ -303,25 +295,21 @@ void connectToServer() {
 }
 
 
+// Gets the temperatures from the sensors and puts them in the temps array
 int getTemps() {
   sensors.requestTemperatures(); // Send the command to get temperatures
   int c = 0;
   for(int i=0; i<FEEDS; i++) {
     #if (DEBUG==1)
-      Serial.print("feed_id : ");
-      PRINT(feed_ids[i],DEC);
+      Serial.print(feeds[i]);
+      Serial.print(" value = ");
     #endif
     float t = getTempByIndex(i);
     if (t < 1) {
-      #if (DEBUG==1)
-         PRINT(" - value < 1, not posting ");
-      #endif
+      PRINT(" value < 1, not posting ");
     }
     else {
-      #if (DEBUG==1)
-        Serial.print(" - value : ");
-        PRINT(t,DEC);
-      #endif
+      PRINT(t,DEC);
       dtostrf(t, 4, 1, temps[c]);
       c++;
     }
