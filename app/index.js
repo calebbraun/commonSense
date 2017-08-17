@@ -31,14 +31,38 @@ app.use(bodyParser.json())
 app.use(bodyParser.urlencoded({extended:true}))
 //app.use(express.urlencoded());
 
-app.get('/', (request, response) => {
-	response.render('home', {
-		name: 'and welcome to commonSense!'
+// ROUTES
+var router = express.Router()
+
+router.get('/', function (request, response) {
+	pool.connect(function(err, client, done) {
+		var washer3Status = 'unable to connect';
+		var washer3TimeMessage;
+		if (err) {
+			console.error('Connection error:\n', err)
+		} else {
+			client.query('SELECT * FROM washers ORDER BY date DESC LIMIT 1', function(err, result) {
+				if (err) throw err
+				var w3 = result.rows[0].w3
+				if (w3 != null) {
+					washer3Status = (w3) ? 'on' : 'off'
+					washer3TimeMessage = "It was turned on "
+					washer3TimeMessage += result.rows[0].date + "."
+
+				}
+				client.end()
+				response.render('home', {
+					name: 'and welcome to commonSense!',
+					washer3Status: washer3Status,
+					washer3TimeMessage: washer3TimeMessage
+				})
+			})
+		}
 	})
 })
 
 
-app.post('/', function (req, res) {
+router.post('/', function (req, res) {
 	// retrieve user posted data from the body
 	const data = req.body
 
@@ -48,19 +72,26 @@ app.post('/', function (req, res) {
 				console.error('Connection error:\n', err)
 				res.send("Write to database unsuccessful.")
 			} else {
-				var values = [data.tank_top_temp,
-							  data.tank_bottom_temp,
-							  data.ambient_temp,
-							  data.washer1_on,
-							  data.washer2_on,
-							  data.washer3_on]
-
-				/* Table 'commonsense' looks like this:
-			 	._______________________________________________________________________________________________.
-				| date | tank_top_temp | tank_bottom_temp | ambient_temp | washer1_on | washer2_on | washer3_on |
-				|------+---------------+------------------+--------------+------------+------------+------------|
-				*/
-				client.query('INSERT INTO commonsense (date, tank_top_temp, tank_bottom_temp, ambient_temp, washer1_on, washer2_on, washer3_on) VALUES (NOW(), $1, $2, $3, $4, $5, $6);', values, function(err, result) {
+				var values;
+				var query;
+				if (data.temps != null) {
+					values = [data.temps.tank_top_temp,
+							  data.temps.ambient_temp,
+							  data.temps.tank_bottom_temp,
+							  data.washers.w1,
+							  data.washers.w2,
+							  data.washers.w3]
+					query = 'INSERT INTO commonsense (date, tank_top_temp, tank_bottom_temp, ambient_temp, washer1_on, washer2_on, washer3_on) VALUES (NOW(), $1, $2, $3, $4, $5, $6);'
+				} else {
+					values = [data.washers.w1,
+							  data.w1val,
+							  data.washers.w2,
+							  data.w2val,
+							  data.washers.w3,
+							  data.w3val]
+					query = 'INSERT INTO washers (date, w1, w1_val, w2, w2_val, w3, w3_val) VALUES (NOW(), $1, $2, $3, $4, $5, $6);'
+				}
+				client.query(query, values, function(err, result) {
 					done()
 					if (err) {
 						return console.error('Query error:\n', err)
@@ -75,6 +106,25 @@ app.post('/', function (req, res) {
 		res.send(ret)
 	}
 })
+
+router.get('//data', function(req, res) {
+	pool.connect(function(err, client, done) {
+		if (err) {
+			console.error('Connection error:\n', err)
+		} else {
+			client.query('SELECT * FROM commonsense', function(err, result) {
+				if (err) throw err
+				data = result.rows
+				client.end()
+				res.render('data', {
+					data: data,
+				})
+			})
+		}
+	})
+})
+
+app.use(router)
 
 app.listen(port, (err) => {
 	if (err) {
