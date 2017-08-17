@@ -1,0 +1,23 @@
+<table>
+<col align="left">
+<col align="center">
+<col align="center">
+<col align="center">
+<col align="center">
+<tr>
+<th></th>
+<th>Date</th>
+<th>Tank Temp (top)</th>
+<th>Tank Temp (bottom)</th>
+<th>Ambient Temp</th>
+</tr>
+{{#each data}}
+  <tr>
+    <td>{{@index}}</td>
+    <td>{{this.date}}</td>
+    <td>{{this.tank_top_temp}}</td>
+    <td>{{this.tank_bottom_temp}}</td>
+    <td>{{this.ambient_temp}}</td>
+  </tr>
+{{/each}}
+</table>
