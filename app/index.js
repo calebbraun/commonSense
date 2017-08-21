@@ -21,8 +21,10 @@ const pool = new Pool({
 app.engine('.hbs', exphbs({
 	defaultLayout: 'main',
 	extname: '.hbs',
-	layoutsDir: path.join(__dirname, 'views/layouts')
+	layoutsDir: path.join(__dirname, 'views/layouts'),
+	partialsDir: path.join(__dirname, 'views/partials')
 }))
+
 app.set('view engine', '.hbs')
 app.set('views', path.join(__dirname, 'views'))
 
@@ -41,21 +43,26 @@ router.get('/', function (request, response) {
 		if (err) {
 			console.error('Connection error:\n', err)
 		} else {
-			client.query('SELECT * FROM washers ORDER BY date DESC LIMIT 1', function(err, result) {
+			client.query('SELECT * FROM commonsense ORDER BY date DESC LIMIT 1', function(err, result) {
 				if (err) throw err
-				var w3 = result.rows[0].w3
-				if (w3 != null) {
-					washer3Status = (w3) ? 'on' : 'off'
-					washer3TimeMessage = "It was last turned on "
-					var d = new Date(result.rows[0].date)
-					washer3TimeMessage += d.toDateString() + "."
+				var data = result.rows[0]
+				var temp_amb = data.ambient_temp
+				var temp_tank = parseInt(data.tank_top_temp)
+				var w3 = data.washer3_on
 
+				if (w3 != null) {
+					washer3Status = (w3) ? 'On' : 'Off'
+					washer3TimeMessage = "It was last turned on "
+					var d = new Date(data.date)
+					washer3TimeMessage += d.toDateString() + "."
 				}
+
 				client.end()
 				response.render('home', {
-					name: 'and welcome to commonSense!',
 					washer3Status: washer3Status,
-					washer3TimeMessage: washer3TimeMessage
+					washer3TimeMessage: washer3TimeMessage,
+					ambient_temp: temp_amb,
+					tank_temp: temp_tank
 				})
 			})
 		}
