@@ -18,7 +18,6 @@ const pool = new Pool({
 	port: config.database.port
 })
 
-
 app.engine('.hbs', exphbs({
 	defaultLayout: 'main',
 	extname: '.hbs',
@@ -30,6 +29,7 @@ app.set('views', path.join(__dirname, 'views'))
 app.use(bodyParser.json())
 app.use(bodyParser.urlencoded({extended:true}))
 //app.use(express.urlencoded());
+app.use(express.static('public'))
 
 // ROUTES
 var router = express.Router()
@@ -46,8 +46,9 @@ router.get('/', function (request, response) {
 				var w3 = result.rows[0].w3
 				if (w3 != null) {
 					washer3Status = (w3) ? 'on' : 'off'
-					washer3TimeMessage = "It was turned on "
-					washer3TimeMessage += result.rows[0].date + "."
+					washer3TimeMessage = "It was last turned on "
+					var d = new Date(result.rows[0].date)
+					washer3TimeMessage += d.toDateString() + "."
 
 				}
 				client.end()
@@ -112,12 +113,17 @@ router.get('//data', function(req, res) {
 		if (err) {
 			console.error('Connection error:\n', err)
 		} else {
-			client.query('SELECT * FROM commonsense', function(err, result) {
+			var s = (req.query.s == null) ? 0 : parseInt(req.query.s)
+			client.query('SELECT * FROM commonsense ORDER BY date DESC LIMIT 200 OFFSET $1', [s], function(err, result) {
 				if (err) throw err
 				data = result.rows
 				client.end()
 				res.render('data', {
 					data: data,
+					start: s,
+					helpers: {
+						add: function(lvalue, rvalue) { return parseInt(lvalue) + parseInt(rvalue) + 1}
+					}
 				})
 			})
 		}

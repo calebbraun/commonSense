@@ -13,7 +13,7 @@
 </tr>
 {{#each data}}
   <tr>
-    <td>{{@index}}</td>
+    <td>{{add ../start @index}}</td>
     <td>{{this.date}}</td>
     <td>{{this.tank_top_temp}}</td>
     <td>{{this.tank_bottom_temp}}</td>
@@ -21,3 +21,4 @@
   </tr>
 {{/each}}
 </table>
+<a href="data?s={{add start 199}}">next</a>
