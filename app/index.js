@@ -59,6 +59,7 @@ router.get('/', function (request, response) {
 
 				client.end()
 				response.render('home', {
+					active: ["x", "active", "x", "x", "x"],
 					washer3Status: washer3Status,
 					washer3TimeMessage: washer3TimeMessage,
 					ambient_temp: temp_amb,
@@ -115,7 +116,7 @@ router.post('/', function (req, res) {
 	}
 })
 
-router.get('//data', function(req, res) {
+router.get('/data', function(req, res) {
 	pool.connect(function(err, client, done) {
 		if (err) {
 			console.error('Connection error:\n', err)
@@ -124,9 +125,21 @@ router.get('//data', function(req, res) {
 			client.query('SELECT * FROM commonsense ORDER BY date DESC LIMIT 200 OFFSET $1', [s], function(err, result) {
 				if (err) throw err
 				data = result.rows
+				var shortdata = []
+				for (var i = 0; i < data.length - 1; i++) {
+					var d1 = new Date(data[i+1].date)
+					var d2 = new Date(data[i].date)
+					if (i == 100) {
+						console.log("d1-d2:")
+						console.log(d1-d2)
+					}
+					if (d2 - d1 > 10) {
+						shortdata.push(data[i])
+					}
+				}
 				client.end()
 				res.render('data', {
-					data: data,
+					data: shortdata,
 					start: s,
 					helpers: {
 						add: function(lvalue, rvalue) { return parseInt(lvalue) + parseInt(rvalue) + 1}
