@@ -89,7 +89,7 @@ void initializeEthernetConnection() {
   digitalWrite(green, HIGH);
   digitalWrite(red, HIGH);
 
-  byte mac[] = { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED };  // unused mac address
+  byte mac[] = { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xEE };  // unused mac address
   if (Ethernet.begin(mac) == 0) {
     PRINT("Failed to configure Ethernet using DHCP");
     state = ERROR_STATE;
@@ -227,8 +227,8 @@ bool post(String thisData) {
     }
 
     if (clientConnected) {
-        client.println("POST /commonsense HTTP/1.1");  // send the header:
-        client.println("Host: qivc.org");
+        client.println("POST / HTTP/1.1");  // send the header:
+        client.println("Host: commonsense.qivc.org");
         client.println("Connection: close");
         client.println("Content-Type: application/json");
         client.print("Content-Length: ");
@@ -275,7 +275,7 @@ void connectToServer() {
     PRINT("Connecting...");
     uint16_t retry = 3;     // retry count, normally 3:
     while (retry) {
-        if (client.connect("qivc.org", 80)) {
+        if (client.connect("commonsense.qivc.org", 80)) {
             Serial.print("Connection to host succeeded in ");
             Serial.print(3-retry);
             PRINT(" attempts.");
